@@ -1,22 +1,19 @@
 package coursera.service;
 
 import coursera.config.CustomUserDetails;
-import coursera.domain.Test;
-import coursera.domain.User;
-import coursera.domain.UserTest;
-import coursera.domain.UserTestKey;
+import coursera.domain.*;
 import coursera.dto.QuestionDTO;
 import coursera.dto.TestDTO;
 import coursera.dto.VariantDTO;
 import coursera.exceptions.TestException;
-import coursera.form.AnswerForm;
-import coursera.form.TestForm;
+import coursera.form.*;
 import coursera.repos.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -29,6 +26,8 @@ public class TestService {
     @Autowired
     QuestionRepo questionRepo;
     @Autowired
+    WeekRepo weekRepo;
+    @Autowired
     VariantRepo variantRepo;
     @Autowired
     UserRepo userRepo;
@@ -40,13 +39,67 @@ public class TestService {
     CourseRepo courseRepo;
     User user;
 
+    @Transactional
+    public String add(Long c, AddTestForm testForm) throws TestException{
+        Week week = weekRepo.findWeekById(c);
+        if (week == null){
+            throw new TestException("Week is not found");
+        }
+        Test t = new Test();
+        t.setMinimum(testForm.getMinimum());
+        t.setWeek(week);
+        testRepo.save(t);
+        addQuestions(t, testForm);
+        return "Test added";
+    }
+
+    @Transactional
+    void addQuestions(Test t, AddTestForm testForm) throws TestException {
+        ArrayList<QuestionForm> questions = testForm.getQuestions();
+        if (questions.size() == 0) throw new TestException("Test must have more than 0 questions");
+        for (QuestionForm question : questions){
+            Question q = new Question();
+            q.setTest(t);
+            q.setDescription(question.getDescription());
+            questionRepo.save(q);
+            ArrayList<VariantForm> listOfVariants = question.getListOfVariants();
+            if (listOfVariants.size() == 0) throw new TestException("Each question must have more at least 1 correct answer");
+            for (VariantForm variant : listOfVariants){
+                Variant v = new Variant();
+                v.setDescription(variant.getDescription());
+                v.setCorrect(variant.isCorrect());
+                v.setQuestion(q);
+                variantRepo.save(v);
+            }
+        }
+    }
+
+    @Transactional
+    public String edit(Long t, AddTestForm testForm) throws TestException {
+        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found"));
+        test.setMinimum(testForm.getMinimum());
+        testRepo.save(test);
+        ArrayList<Question> existingQuestions = questionRepo.findAllByTestId(t);
+        for (Question q : existingQuestions){
+            variantRepo.deleteAllByQuestionId(q.getId());
+            questionRepo.delete(q);
+        }
+        addQuestions(test, testForm);
+        return "Test edited";
+    }
+
+    public String delete(Long t) throws TestException {
+        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found"));
+        testRepo.delete(test);
+        return "Test was deleted";
+    }
 
     public TestDTO get(Long test) throws TestException {
         Test t = testRepo.findById(test).orElseThrow(() -> new TestException("Test is not found"));
         checkRegister(t);
         TestDTO testDTO = new TestDTO();
-        ArrayList<QuestionDTO> questions = new ArrayList<QuestionDTO>();
-        questionRepo.findAll().forEach(q -> {
+        ArrayList<QuestionDTO> questions = new ArrayList<>();
+        questionRepo.findAllByTestId(t.getId()).forEach(q -> {
             QuestionDTO dto = new QuestionDTO();
             dto.setId(q.getId());
             dto.setDescription(q.getDescription());
@@ -90,17 +143,14 @@ public class TestService {
         //проверка соответствия дедлайну
         if (t.getWeek().getDeadline().before(dateNow)){
             throw new TestException("you missed deadline, it was " + t.getWeek().getDeadline());
-//            return new ResponseEntity<>("you missed deadline, it was " + t.getWeek().getDeadline() , HttpStatus.INTERNAL_SERVER_ERROR);
         }
         //проверка наличия попыток пройти тест и их уменьшение на 1
         if (userTestRepo.getAttempts(t.getId(), user.getId()) > 0){
             userTestRepo.setAttempts(t.getId(), user.getId());
         }
-//        else return new ResponseEntity<>("you don't have attempts", HttpStatus.FORBIDDEN);
         else throw new TestException("you don't have attempts");
         //проверка, что человек внес ответы на все вопросы в тесте
         if (answers.size() != numberOfQuestions){
-//            return new ResponseEntity<>("not all answers there" , HttpStatus.INTERNAL_SERVER_ERROR);
             throw new TestException("not all answers there");
         }
         //подсчет и внесение в БД проргресса теста и прогресса курса
@@ -139,6 +189,10 @@ public class TestService {
     private void checkRegister(Test t) throws TestException {
         CustomUserDetails userDetails = (CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         user = userRepo.findUserByEmail(userDetails.getUsername());
+        System.out.println((CustomUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        if (SecurityContextHolder.getContext().getAuthentication().getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN"))){
+            return;
+        }
         if (userCourseRepo.checkUserCourse(t.getWeek().getCourse().getId(), user.getId()) == null){
             throw new TestException("you don't have register to this course");
 //            return new ResponseEntity<>("you don't have register to this course" , HttpStatus.INTERNAL_SERVER_ERROR);

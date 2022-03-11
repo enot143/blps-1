@@ -4,7 +4,8 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 src/main/resources/application.properties
-
+btm1.tlog
+btm2.tlog
 ### IntelliJ IDEA ###
 .idea
 *.iws

@@ -9,7 +9,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.ArrayList;
 
 public interface VariantRepo extends JpaRepository<Variant, Long> {
-
+    ArrayList<Variant> findAllByQuestionId(Long id);
+    void deleteAllByQuestionId(Long id);
     @Query("SELECT v.id FROM Variant v WHERE v.question.id = :question_id")
     ArrayList<Long> findVariantIdByQuestion(@Param("question_id") Long question_id);
 
