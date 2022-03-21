@@ -1,6 +1,5 @@
 package coursera.controller;
 
-import coursera.dto.TestDTO;
 import coursera.exceptions.TestException;
 import coursera.form.AddTestForm;
 import coursera.form.TestForm;
@@ -24,35 +23,35 @@ public class TestController {
     //получить тест
     @PreAuthorize("hasAuthority('GET_PRIVILEGE')")
     @GetMapping("{test_id}")
-    public TestDTO getTest(@PathVariable("test_id") Long t) throws TestException {
+    public ResponseEntity<?> getTest(@PathVariable("test_id") Long t) throws TestException {
         return testService.get(t);
     }
 
     //отправить тест на проверку
     @PreAuthorize("hasAuthority('SUBMIT_PRIVILEGE')")
     @PutMapping("{test_id}/submit")
-    public String submitTest(@PathVariable("test_id") Long t, @RequestBody TestForm testForm) throws TestException {
+    public ResponseEntity<?> submitTest(@PathVariable("test_id") Long t, @RequestBody TestForm testForm) throws TestException {
         return testService.submit(t, testForm);
     }
 
     //добавление нового теста в определенный курс
     @PreAuthorize("hasAuthority('ADD_PRIVILEGE')")
-    @PostMapping("new/{course_id}")
-    public String addTest(@PathVariable("course_id") Long c, @RequestBody AddTestForm testForm) throws TestException {
+    @PostMapping("{course_id}")
+    public ResponseEntity<?> addTest(@PathVariable("course_id") Long c, @RequestBody AddTestForm testForm) throws TestException {
         return testService.add(c, testForm);
     }
 
     //редактирование теста, который существует
     @PreAuthorize("hasAuthority('EDIT_PRIVILEGE')")
     @PutMapping("{test_id}/edit")
-    public String editTest(@PathVariable("test_id") Long t, @RequestBody AddTestForm testForm) throws TestException {
+    public ResponseEntity<?> editTest(@PathVariable("test_id") Long t, @RequestBody AddTestForm testForm) throws TestException {
         return testService.edit(t, testForm);
     }
 
     //удаление теста, который существует
     @PreAuthorize("hasAuthority('DELETE_PRIVILEGE')")
-    @DeleteMapping("{test_id}/delete")
-    public String deleteTest(@PathVariable("test_id") Long t) throws TestException {
+    @DeleteMapping("{test_id}")
+    public ResponseEntity<?> deleteTest(@PathVariable("test_id") Long t) throws TestException {
         return testService.delete(t);
     }
 }

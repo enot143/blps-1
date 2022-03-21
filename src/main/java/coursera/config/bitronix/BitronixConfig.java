@@ -35,13 +35,14 @@ public class BitronixConfig{
     }
     @Bean(name = "PgDataSource")
     public DataSource primaryMySqlDataSource() {
-        String user = "";
-        String password = "";
-        String url = "jdbc:postgresql://pg:5432/studs";
+        String user = "postgres";
+        String password = "postgres";
+        String url = "jdbc:postgresql://localhost:5432/070322";
         PoolingDataSource bitronixDataSourceBean = new PoolingDataSource();
         bitronixDataSourceBean.setMaxPoolSize(5);
         bitronixDataSourceBean.setUniqueName("primaryPgDataSourceResource");
         bitronixDataSourceBean.setClassName("org.postgresql.xa.PGXADataSource");
+        //This parameter is used to adjust whether or not you want to be able to run SQL statements outside of XA transactions scope. Defaults value: false.
         bitronixDataSourceBean.setAllowLocalTransactions(true);
         Properties properties = new Properties();
         properties.put("user",  user);

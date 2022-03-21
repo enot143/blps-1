@@ -8,7 +8,10 @@ import coursera.dto.VariantDTO;
 import coursera.exceptions.TestException;
 import coursera.form.*;
 import coursera.repos.*;
+import net.minidev.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,7 @@ import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 
 
 @Service
@@ -40,30 +44,30 @@ public class TestService {
     User user;
 
     @Transactional
-    public String add(Long c, AddTestForm testForm) throws TestException{
+    public ResponseEntity<?> add(Long c, AddTestForm testForm) throws TestException{
         Week week = weekRepo.findWeekById(c);
         if (week == null){
-            throw new TestException("Week is not found");
+            throw new TestException("Week is not found", HttpStatus.NOT_FOUND);
         }
         Test t = new Test();
         t.setMinimum(testForm.getMinimum());
         t.setWeek(week);
         testRepo.save(t);
         addQuestions(t, testForm);
-        return "Test added";
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @Transactional
     void addQuestions(Test t, AddTestForm testForm) throws TestException {
         ArrayList<QuestionForm> questions = testForm.getQuestions();
-        if (questions.size() == 0) throw new TestException("Test must have more than 0 questions");
+        if (questions.size() == 0) throw new TestException("Test must have more than 0 questions", HttpStatus.OK);
         for (QuestionForm question : questions){
             Question q = new Question();
             q.setTest(t);
             q.setDescription(question.getDescription());
             questionRepo.save(q);
             ArrayList<VariantForm> listOfVariants = question.getListOfVariants();
-            if (listOfVariants.size() == 0) throw new TestException("Each question must have more at least 1 correct answer");
+            if (listOfVariants.size() == 0) throw new TestException("Each question must have more at least 1 correct answer", HttpStatus.OK);
             for (VariantForm variant : listOfVariants){
                 Variant v = new Variant();
                 v.setDescription(variant.getDescription());
@@ -75,8 +79,8 @@ public class TestService {
     }
 
     @Transactional
-    public String edit(Long t, AddTestForm testForm) throws TestException {
-        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found"));
+    public ResponseEntity<?> edit(Long t, AddTestForm testForm) throws TestException {
+        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found", HttpStatus.NOT_FOUND));
         test.setMinimum(testForm.getMinimum());
         testRepo.save(test);
         ArrayList<Question> existingQuestions = questionRepo.findAllByTestId(t);
@@ -85,17 +89,17 @@ public class TestService {
             questionRepo.delete(q);
         }
         addQuestions(test, testForm);
-        return "Test edited";
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    public String delete(Long t) throws TestException {
-        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found"));
+    public ResponseEntity<?> delete(Long t) throws TestException {
+        Test test = testRepo.findById(t).orElseThrow(() -> new TestException("Test is not found", HttpStatus.NOT_FOUND));
         testRepo.delete(test);
-        return "Test was deleted";
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    public TestDTO get(Long test) throws TestException {
-        Test t = testRepo.findById(test).orElseThrow(() -> new TestException("Test is not found"));
+    public ResponseEntity<?> get(Long test) throws TestException {
+        Test t = testRepo.findById(test).orElseThrow(() -> new TestException("Test is not found", HttpStatus.NOT_FOUND));
         checkRegister(t);
         TestDTO testDTO = new TestDTO();
         ArrayList<QuestionDTO> questions = new ArrayList<>();
@@ -116,13 +120,13 @@ public class TestService {
         });
         testDTO.setTest(t);
         testDTO.setListOfQuestions(questions);
-        return testDTO;
+        return new ResponseEntity<>(testDTO, HttpStatus.OK);
     }
 
 
     @Transactional
-    public String submit(Long test, TestForm testForm) throws TestException {
-        Test t = testRepo.findById(test).orElseThrow(() -> new TestException("Test is not found"));
+    public ResponseEntity<?> submit(Long test, TestForm testForm) throws TestException {
+        Test t = testRepo.findById(test).orElseThrow(() -> new TestException("Test is not found", HttpStatus.NOT_FOUND));
         int numberOfRightAnswers = 0;
         Long numberOfQuestions = testRepo.findNumberOfQuestionsInTest(t.getId());
         Date dateNow = new java.util.Date();
@@ -142,16 +146,16 @@ public class TestService {
         }
         //проверка соответствия дедлайну
         if (t.getWeek().getDeadline().before(dateNow)){
-            throw new TestException("you missed deadline, it was " + t.getWeek().getDeadline());
+            throw new TestException("you missed deadline, it was " + t.getWeek().getDeadline(), HttpStatus.OK);
         }
         //проверка наличия попыток пройти тест и их уменьшение на 1
         if (userTestRepo.getAttempts(t.getId(), user.getId()) > 0){
             userTestRepo.setAttempts(t.getId(), user.getId());
         }
-        else throw new TestException("you don't have attempts");
+        else throw new TestException("you don't have attempts", HttpStatus.OK);
         //проверка, что человек внес ответы на все вопросы в тесте
         if (answers.size() != numberOfQuestions){
-            throw new TestException("not all answers there");
+            throw new TestException("not all answers there", HttpStatus.OK);
         }
         //подсчет и внесение в БД проргресса теста и прогресса курса
         for (int i = 0; i < answers.size(); i++){
@@ -182,7 +186,10 @@ public class TestService {
         if (!userCourseRepo.checkCertificateStatus(t.getWeek().getCourse().getId(), user.getId())){
             userCourseRepo.setCertificateStatus(t.getWeek().getCourse().getId(), user.getId());
         }
-        return "progress of the test = " + progressOfTest;
+        HashMap<String, Double> map = new HashMap<>();
+        map.put("progress of the test", progressOfTest);
+        JSONObject jsonObj = new JSONObject(map);
+        return new ResponseEntity<>(jsonObj, HttpStatus.OK);
     }
 
 
@@ -194,8 +201,7 @@ public class TestService {
             return;
         }
         if (userCourseRepo.checkUserCourse(t.getWeek().getCourse().getId(), user.getId()) == null){
-            throw new TestException("you don't have register to this course");
-//            return new ResponseEntity<>("you don't have register to this course" , HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new TestException("you don't have register to this course", HttpStatus.OK);
         }
     }
 }
