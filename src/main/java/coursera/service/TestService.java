@@ -174,6 +174,7 @@ public class TestService {
             Long p = userTestRepo.getProgress(listOfTestsId.get(i), user.getId());
             if (p != null){
                 progressOfCourse =+ p;
+                progressOfCourse =+ p;
             }
         }
         progressOfCourse = progressOfCourse / listOfTestsId.size();

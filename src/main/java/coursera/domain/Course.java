@@ -9,7 +9,7 @@ import javax.persistence.*;
 @Entity
 @Data
 @Table
-@ToString(of = {"id", "cost", "week_quantity", "university"})
+@ToString(of = {"id", "cost", "week_quantity", "university", "maxAttempts"})
 @EqualsAndHashCode(of = {"id"})
 public class Course {
     @Id
@@ -19,4 +19,6 @@ public class Course {
     private Long cost;
     private Integer week_quantity;
     private String university;
+    @Column(name = "max_attempts_to_add")
+    private Integer maxAttempts;
 }

@@ -9,7 +9,7 @@ import javax.persistence.*;
 @Entity
 @Data
 @Table(name = "user_course")
-@ToString(of = {"user", "course", "start_date", "end_date", "progress", "certificate_status"})
+@ToString(of = {"user", "course", "start_date", "end_date", "progress", "certificate_status", "added_attempts"})
 @EqualsAndHashCode
 public class UserCourse {
 
@@ -29,4 +29,5 @@ public class UserCourse {
     private Date end_date;
     private Integer progress;
     private boolean certificate_status;
+    private Integer added_attempts;
 }

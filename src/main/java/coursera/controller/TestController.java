@@ -1,13 +1,18 @@
 package coursera.controller;
 
 import coursera.exceptions.TestException;
+import coursera.form.AddAttemptsForm;
 import coursera.form.AddTestForm;
 import coursera.form.TestForm;
+import coursera.service.AttemptService;
 import coursera.service.TestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.io.IOException;
 
 @CrossOrigin("*")
 @RestController
@@ -15,9 +20,12 @@ import org.springframework.web.bind.annotation.*;
 public class TestController {
     @Autowired
     private final TestService testService;
+    @Autowired
+    private final AttemptService attemptService;
 
-    public TestController(TestService testService) {
+    public TestController(TestService testService, AttemptService attemptService) {
         this.testService = testService;
+        this.attemptService = attemptService;
     }
 
     //получить тест
@@ -53,5 +61,12 @@ public class TestController {
     @DeleteMapping("{test_id}")
     public ResponseEntity<?> deleteTest(@PathVariable("test_id") Long t) throws TestException {
         return testService.delete(t);
+    }
+
+    //запрос на добавление попыток
+    @PreAuthorize("hasAuthority('SUBMIT_PRIVILEGE')")
+    @PostMapping("{test_id}/attempt")
+    public ResponseEntity<?> addAttempts(@PathVariable("test_id") Long t , @Valid @RequestBody AddAttemptsForm form) throws TestException, IOException {
+        return attemptService.add(t, form);
     }
 }
